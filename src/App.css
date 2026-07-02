@@ -1,0 +1,532 @@
+:root {
+  color: #1f2933;
+  background: #f4f1ea;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  margin: 0;
+  background:
+    linear-gradient(135deg, rgba(49, 109, 119, 0.12), transparent 38%),
+    #f4f1ea;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 8px;
+  color: #ffffff;
+  background: #246b6b;
+  cursor: pointer;
+  font-weight: 700;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+button:hover {
+  background: #1b5757;
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid rgba(36, 107, 107, 0.25);
+  outline-offset: 2px;
+}
+
+.app-shell {
+  width: min(980px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 40px 0;
+}
+
+.header-panel,
+.calendar-panel,
+.quick-entry,
+.custom-entry,
+.records-panel {
+  border: 1px solid #ded6c9;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.84);
+}
+
+.header-panel {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 28px;
+  box-shadow: 0 18px 50px rgba(31, 41, 51, 0.08);
+}
+
+.eyebrow,
+.period,
+.total-box span,
+.calendar-heading p,
+.records-heading span {
+  margin: 0;
+  color: #667085;
+  font-size: 0.95rem;
+}
+
+.eyebrow {
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+h1,
+h2 {
+  margin: 0;
+  color: #19232d;
+  letter-spacing: 0;
+}
+
+h1 {
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  line-height: 1.05;
+}
+
+h2 {
+  font-size: 1.35rem;
+}
+
+.period {
+  margin-top: 12px;
+}
+
+.period-setting {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  color: #344054;
+  font-weight: 800;
+}
+
+.period-setting select {
+  min-height: 40px;
+  border: 1px solid #d4cbbf;
+  border-radius: 8px;
+  padding: 0 34px 0 12px;
+  color: #19232d;
+  background: #fffdf9;
+  cursor: pointer;
+}
+
+select {
+  border: 1px solid #d4cbbf;
+  border-radius: 8px;
+  color: #19232d;
+  background: #fffdf9;
+  cursor: pointer;
+}
+
+.total-box {
+  display: grid;
+  min-width: 230px;
+  place-content: center;
+  gap: 8px;
+  padding: 20px;
+  border-radius: 8px;
+  color: #ffffff;
+  background: #19232d;
+}
+
+.total-box span {
+  color: #cbd5df;
+}
+
+.total-box strong {
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+}
+
+.calendar-panel,
+.quick-entry,
+.custom-entry,
+.records-panel {
+  margin-top: 18px;
+}
+
+.calendar-panel {
+  padding: 18px;
+}
+
+.records-heading,
+.summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.calendar-heading {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #eee6da;
+  text-align: center;
+}
+
+.month-button {
+  min-height: 44px;
+  width: 44px;
+  padding: 0;
+  background: #eef7f5;
+  color: #246b6b;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.month-button:hover {
+  background: #d9ebe7;
+}
+
+.calendar-weekdays,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.calendar-weekdays {
+  margin-top: 14px;
+}
+
+.calendar-weekdays span {
+  color: #667085;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.calendar-grid {
+  margin-top: 8px;
+}
+
+.calendar-spacer {
+  min-height: 76px;
+}
+
+.calendar-day {
+  display: grid;
+  align-content: space-between;
+  min-height: 76px;
+  padding: 10px;
+  border: 1px solid #eee6da;
+  color: #19232d;
+  background: #fffdf9;
+  text-align: left;
+}
+
+.calendar-day:hover {
+  background: #eef7f5;
+}
+
+.calendar-day.is-selected {
+  border-color: #246b6b;
+  color: #ffffff;
+  background: #246b6b;
+}
+
+.calendar-day span {
+  font-size: 1rem;
+}
+
+.calendar-day strong {
+  overflow: hidden;
+  font-size: 0.85rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-entry {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+}
+
+.entry-row,
+.custom-entry {
+  display: grid;
+  gap: 12px;
+  align-items: center;
+  padding: 16px;
+}
+
+.entry-row {
+  grid-template-columns: 1fr;
+  padding: 12px;
+  border: 1px solid #eee6da;
+  border-radius: 8px;
+  background: #fffdf9;
+}
+
+.entry-row label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #19232d;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.item-icon {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 1.8em;
+  height: 1.8em;
+  place-items: center;
+  border-radius: 8px;
+  background: #eef7f5;
+  font-size: 1rem;
+}
+
+.entry-row input {
+  min-height: 38px;
+  padding: 0 10px;
+}
+
+.entry-row button {
+  min-height: 38px;
+}
+
+.custom-entry {
+  grid-template-columns: 130px minmax(0, 1.3fr) minmax(120px, 0.8fr) 96px;
+}
+
+.icon-select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 10px;
+}
+
+input {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #d4cbbf;
+  border-radius: 8px;
+  padding: 0 14px;
+  color: #19232d;
+  background: #fffdf9;
+}
+
+input::placeholder {
+  color: #98a2b3;
+}
+
+.records-panel {
+  padding: 18px;
+}
+
+.records-heading {
+  padding-bottom: 14px;
+  border-bottom: 1px solid #eee6da;
+}
+
+.empty-state {
+  margin: 0;
+  padding: 28px 0 10px;
+  color: #667085;
+  text-align: center;
+}
+
+.records-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.records-list li {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-height: 122px;
+  padding: 12px;
+  border: 1px solid #eee6da;
+  border-radius: 8px;
+  background: #fffdf9;
+}
+
+.record-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.record-title span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #19232d;
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.record-controls {
+  display: grid;
+  gap: 8px;
+}
+
+.records-list input {
+  min-height: 38px;
+  padding: 0 10px;
+  color: #246b6b;
+  font-size: 0.95rem;
+  font-weight: 800;
+  text-align: left;
+}
+
+.records-list button {
+  min-height: 34px;
+  color: #78350f;
+  background: #f5d7a1;
+  font-size: 0.85rem;
+}
+
+.records-list button:hover {
+  background: #efc16f;
+}
+
+.summary-row {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 8px;
+  color: #ffffff;
+  background: #19232d;
+}
+
+.summary-row span {
+  color: #cbd5df;
+  font-weight: 700;
+}
+
+.summary-row strong {
+  font-size: 1.5rem;
+}
+
+@media (max-width: 760px) {
+  .app-shell {
+    width: min(100% - 24px, 980px);
+    padding: 24px 0;
+  }
+
+  .header-panel,
+  .summary-row {
+    display: grid;
+  }
+
+  .header-panel {
+    padding: 22px;
+  }
+
+  .total-box {
+    min-width: 0;
+    justify-items: start;
+  }
+
+  .period-setting {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .calendar-panel,
+  .records-panel {
+    padding: 14px;
+  }
+
+  .calendar-heading {
+    grid-template-columns: 38px minmax(0, 1fr) 38px;
+  }
+
+  .month-button {
+    min-height: 38px;
+    width: 38px;
+    font-size: 1.7rem;
+  }
+
+  .calendar-weekdays,
+  .calendar-grid {
+    gap: 5px;
+  }
+
+  .calendar-spacer,
+  .calendar-day {
+    min-height: 64px;
+  }
+
+  .calendar-day {
+    padding: 7px;
+  }
+
+  .calendar-day strong {
+    font-size: 0.72rem;
+  }
+
+  .custom-entry {
+    grid-template-columns: 1fr;
+  }
+
+  .custom-entry button {
+    width: 100%;
+  }
+
+  .quick-entry {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .entry-row {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .entry-row label {
+    font-size: 0.85rem;
+  }
+
+  .entry-row input,
+  .entry-row button {
+    min-height: 34px;
+    font-size: 0.85rem;
+  }
+
+  .records-heading {
+    align-items: flex-start;
+  }
+
+  .records-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 460px) {
+  .records-list {
+    grid-template-columns: 1fr;
+  }
+}

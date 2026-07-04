@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 
 const presetItems = [
@@ -14,6 +14,12 @@ const customIconOptions = [
   { label: '飲料', icon: '🥤' },
   { label: '其他', icon: '🧾' },
 ]
+const calendarEntryOptions = [...presetItems, ...customIconOptions].map(
+  (item) => ({
+    name: item.name ?? item.label,
+    icon: item.icon,
+  }),
+)
 const storageKey = 'daily-expenses'
 const startDayKey = 'billing-start-day'
 const endDayKey = 'billing-end-day'
@@ -154,6 +160,8 @@ function normalizeRecords(records) {
 
 function App() {
   const today = useMemo(() => new Date(), [])
+  const datePickerRef = useRef(null)
+  const otherPeriodsRef = useRef(null)
   const [startDay, setStartDay] = useState(() => {
     return getSavedDay(startDayKey, 14)
   })
@@ -165,6 +173,14 @@ function App() {
   const [visibleMonth, setVisibleMonth] = useState(
     new Date(today.getFullYear(), today.getMonth(), 1),
   )
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false)
+  const [isOtherPeriodsOpen, setIsOtherPeriodsOpen] = useState(false)
+  const [calendarEntryDateKey, setCalendarEntryDateKey] = useState(null)
+  const [isCalendarEntryFormOpen, setIsCalendarEntryFormOpen] = useState(false)
+  const [calendarEntryName, setCalendarEntryName] = useState(
+    calendarEntryOptions[0].name,
+  )
+  const [calendarEntryAmount, setCalendarEntryAmount] = useState('')
   const [amounts, setAmounts] = useState(
     Object.fromEntries(presetItems.map((item) => [item.name, ''])),
   )
@@ -180,9 +196,10 @@ function App() {
     () => fromDateKey(selectedDateKey),
     [selectedDateKey],
   )
+  const todayDateKey = useMemo(() => toDateKey(today), [today])
   const period = useMemo(
-    () => getBillingPeriod(selectedDate, startDay, endDay),
-    [endDay, selectedDate, startDay],
+    () => getBillingPeriod(today, startDay, endDay),
+    [endDay, startDay, today],
   )
   const periodDays = useMemo(
     () => getBillingDays(period.start, period.end),
@@ -200,9 +217,9 @@ function App() {
     }, {})
   }, [records])
 
-  const selectedItems = useMemo(() => {
+  const todayItems = useMemo(() => {
     const totals = records
-      .filter((record) => record.dateKey === selectedDateKey)
+      .filter((record) => record.dateKey === todayDateKey)
       .reduce((items, record) => {
         const key = `${record.icon}|${record.name}`
         const current = items[key] ?? {
@@ -215,13 +232,75 @@ function App() {
       }, {})
 
     return Object.values(totals)
-  }, [records, selectedDateKey])
+  }, [records, todayDateKey])
 
   const selectedTotal = dailyTotals[selectedDateKey] ?? 0
+  const todayTotal = dailyTotals[todayDateKey] ?? 0
   const periodTotal = periodDays.reduce(
     (sum, day) => sum + (dailyTotals[toDateKey(day)] ?? 0),
     0,
   )
+  const periodKey = toDateKey(period.start)
+  const periodDailySummaries = useMemo(
+    () =>
+      periodDays
+        .map((day) => {
+          const dateKey = toDateKey(day)
+          const total = dailyTotals[dateKey] ?? 0
+
+          return {
+            date: day,
+            dateKey,
+            total,
+            isSelected: dateKey === todayDateKey,
+          }
+        })
+        .filter((day) => day.total > 0),
+    [dailyTotals, periodDays, todayDateKey],
+  )
+  const calendarEntryRecords = useMemo(() => {
+    if (!calendarEntryDateKey) {
+      return []
+    }
+
+    return records
+      .filter((record) => record.dateKey === calendarEntryDateKey)
+      .sort((first, second) => {
+        return new Date(second.createdAt) - new Date(first.createdAt)
+      })
+  }, [calendarEntryDateKey, records])
+  const otherPeriodSummaries = useMemo(() => {
+    const summaries = records.reduce((groups, record) => {
+      const recordPeriod = getBillingPeriod(
+        fromDateKey(record.dateKey),
+        startDay,
+        endDay,
+      )
+      const key = toDateKey(recordPeriod.start)
+
+      if (key === periodKey) {
+        return groups
+      }
+
+      const current = groups[key] ?? {
+        key,
+        start: recordPeriod.start,
+        displayEnd: recordPeriod.displayEnd,
+        total: 0,
+      }
+
+      groups[key] = {
+        ...current,
+        total: current.total + record.amount,
+      }
+
+      return groups
+    }, {})
+
+    return Object.values(summaries).sort((first, second) => {
+      return second.start.getTime() - first.start.getTime()
+    })
+  }, [endDay, periodKey, records, startDay])
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(records))
@@ -235,6 +314,27 @@ function App() {
     localStorage.setItem(endDayKey, String(endDay))
   }, [endDay])
 
+  useEffect(() => {
+    function closePopoversOnOutsideClick(event) {
+      if (!datePickerRef.current?.contains(event.target)) {
+        setIsCalendarOpen(false)
+        setCalendarEntryDateKey(null)
+        setIsCalendarEntryFormOpen(false)
+        setCalendarEntryAmount('')
+      }
+
+      if (!otherPeriodsRef.current?.contains(event.target)) {
+        setIsOtherPeriodsOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', closePopoversOnOutsideClick)
+
+    return () => {
+      document.removeEventListener('pointerdown', closePopoversOnOutsideClick)
+    }
+  }, [])
+
   function changeVisibleMonth(direction) {
     const nextDate = moveMonth(selectedDate, direction)
     setSelectedDateKey(toDateKey(nextDate))
@@ -242,11 +342,21 @@ function App() {
   }
 
   function selectDate(date) {
-    setSelectedDateKey(toDateKey(date))
+    const dateKey = toDateKey(date)
+
+    setSelectedDateKey(dateKey)
     setVisibleMonth(new Date(date.getFullYear(), date.getMonth(), 1))
+    setCalendarEntryDateKey(dateKey)
+    setIsCalendarEntryFormOpen(false)
+    setCalendarEntryAmount('')
   }
 
-  function addRecord(name, amount, icon = getDefaultIcon(name)) {
+  function addRecord(
+    name,
+    amount,
+    icon = getDefaultIcon(name),
+    dateKey = todayDateKey,
+  ) {
     const expense = Number(amount)
 
     if (!name.trim() || Number.isNaN(expense) || expense <= 0) {
@@ -260,7 +370,7 @@ function App() {
         name: name.trim(),
         icon,
         amount: expense,
-        dateKey: selectedDateKey,
+        dateKey,
         createdAt: new Date().toISOString(),
       },
     ])
@@ -278,6 +388,31 @@ function App() {
     setCustomAmount('')
   }
 
+  function submitCalendarEntry(event) {
+    event.preventDefault()
+
+    if (!calendarEntryDateKey) {
+      return
+    }
+
+    const entry = calendarEntryOptions.find(
+      (option) => option.name === calendarEntryName,
+    )
+
+    addRecord(
+      calendarEntryName,
+      calendarEntryAmount,
+      entry?.icon ?? getDefaultIcon(calendarEntryName),
+      calendarEntryDateKey,
+    )
+    setCalendarEntryAmount('')
+    setIsCalendarEntryFormOpen(false)
+  }
+
+  function removeCalendarRecord(id) {
+    setRecords((current) => current.filter((record) => record.id !== id))
+  }
+
   function updateItemAmount(item, amount) {
     const expense = Number(amount)
 
@@ -288,7 +423,7 @@ function App() {
     setRecords((current) => {
       const others = current.filter(
         (record) =>
-          record.dateKey !== selectedDateKey ||
+          record.dateKey !== todayDateKey ||
           record.name !== item.name ||
           record.icon !== item.icon,
       )
@@ -304,7 +439,7 @@ function App() {
           name: item.name,
           icon: item.icon,
           amount: expense,
-          dateKey: selectedDateKey,
+          dateKey: todayDateKey,
           createdAt: new Date().toISOString(),
         },
       ]
@@ -315,7 +450,7 @@ function App() {
     setRecords((current) =>
       current.filter(
         (record) =>
-          record.dateKey !== selectedDateKey ||
+          record.dateKey !== todayDateKey ||
           record.name !== item.name ||
           record.icon !== item.icon,
       ),
@@ -360,67 +495,219 @@ function App() {
             {formatShortDate(period.start)} - {formatShortDate(period.displayEnd)}
           </p>
         </div>
-        <div className="total-box">
-          <span>本期總結</span>
-          <strong>{formatMoney(periodTotal)}</strong>
-        </div>
-      </section>
-
-      <section className="calendar-panel" aria-label="月曆">
-        <div className="calendar-heading">
-          <button
-            aria-label="上一個月"
-            className="month-button"
-            type="button"
-            onClick={() => changeVisibleMonth(-1)}
-          >
-            ‹
-          </button>
-          <div>
-            <h2>{formatMonthTitle(visibleMonth)}</h2>
-            <p>
-              {formatShortDate(selectedDate)} 花費 {formatMoney(selectedTotal)}
-            </p>
+        <div className="header-actions">
+          <div className="total-box">
+            <span>本期總結</span>
+            <strong>{formatMoney(periodTotal)}</strong>
           </div>
-          <button
-            aria-label="下一個月"
-            className="month-button"
-            type="button"
-            onClick={() => changeVisibleMonth(1)}
-          >
-            ›
-          </button>
-        </div>
 
-        <div className="calendar-weekdays" aria-hidden="true">
-          {['日', '一', '二', '三', '四', '五', '六'].map((day) => (
-            <span key={day}>{day}</span>
-          ))}
-        </div>
-
-        <div className="calendar-grid">
-          {Array.from({ length: visibleMonthDays[0].getDay() }).map(
-            (_, index) => (
-              <span className="calendar-spacer" key={`spacer-${index}`} />
-            ),
-          )}
-          {visibleMonthDays.map((day) => {
-            const dateKey = toDateKey(day)
-            const total = dailyTotals[dateKey] ?? 0
-            const isSelected = dateKey === selectedDateKey
-
-            return (
+          <div className="header-icon-row">
+            <div className="date-picker" ref={otherPeriodsRef}>
               <button
-                className={`calendar-day${isSelected ? ' is-selected' : ''}`}
-                key={dateKey}
+                aria-expanded={isOtherPeriodsOpen}
+                aria-label="其他期別總結"
+                className="calendar-toggle"
                 type="button"
-                onClick={() => selectDate(day)}
+                onClick={() => setIsOtherPeriodsOpen((isOpen) => !isOpen)}
               >
-                <span>{day.getDate()}</span>
-                <strong>{total > 0 ? formatMoney(total) : '-'}</strong>
+                <span aria-hidden="true">📊</span>
               </button>
-            )
-          })}
+
+              {isOtherPeriodsOpen ? (
+                <section
+                  className="other-periods-popover"
+                  aria-label="其他期別總結"
+                >
+                  <div className="popover-heading">
+                    <h2>其他期別總結</h2>
+                  </div>
+
+                  {otherPeriodSummaries.length === 0 ? (
+                    <p className="empty-state">還沒有其他期別記帳</p>
+                  ) : (
+                    <ul className="period-summary-list">
+                      {otherPeriodSummaries.map((summary) => (
+                        <li key={summary.key}>
+                          <span>
+                            {formatShortDate(summary.start)} -{' '}
+                            {formatShortDate(summary.displayEnd)}
+                          </span>
+                          <strong>{formatMoney(summary.total)}</strong>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              ) : null}
+            </div>
+
+            <div className="date-picker" ref={datePickerRef}>
+              <button
+                aria-expanded={isCalendarOpen}
+                aria-label="選擇日期"
+                className="calendar-toggle"
+                type="button"
+                onClick={() => setIsCalendarOpen((isOpen) => !isOpen)}
+              >
+                <span aria-hidden="true">📅</span>
+              </button>
+
+              {isCalendarOpen ? (
+                <section className="calendar-popover" aria-label="月曆">
+                  <div className="calendar-heading">
+                    <button
+                      aria-label="上一個月"
+                      className="month-button"
+                      type="button"
+                      onClick={() => changeVisibleMonth(-1)}
+                    >
+                      ‹
+                    </button>
+                    <div>
+                      <h2>{formatMonthTitle(visibleMonth)}</h2>
+                      <p>
+                        {formatShortDate(selectedDate)} 花費{' '}
+                        {formatMoney(selectedTotal)}
+                      </p>
+                    </div>
+                    <button
+                      aria-label="下一個月"
+                      className="month-button"
+                      type="button"
+                      onClick={() => changeVisibleMonth(1)}
+                    >
+                      ›
+                    </button>
+                  </div>
+
+                  <div className="calendar-weekdays" aria-hidden="true">
+                    {['日', '一', '二', '三', '四', '五', '六'].map((day) => (
+                      <span key={day}>{day}</span>
+                    ))}
+                  </div>
+
+                  <div className="calendar-grid">
+                    {Array.from({ length: visibleMonthDays[0].getDay() }).map(
+                      (_, index) => (
+                        <span
+                          className="calendar-spacer"
+                          key={`spacer-${index}`}
+                        />
+                      ),
+                    )}
+                    {visibleMonthDays.map((day) => {
+                      const dateKey = toDateKey(day)
+                      const total = dailyTotals[dateKey] ?? 0
+                      const isSelected = dateKey === selectedDateKey
+                      const isToday = dateKey === todayDateKey
+
+                      return (
+                        <div
+                          className={`calendar-day${
+                            isToday ? ' is-today' : ''
+                          }${isSelected ? ' is-selected' : ''}`}
+                          key={dateKey}
+                        >
+                          <button
+                            aria-label={`新增 ${formatShortDate(day)} 金額`}
+                            className="calendar-date-button"
+                            type="button"
+                            onClick={() => selectDate(day)}
+                          >
+                            <span>{day.getDate()}</span>
+                            <strong>
+                              {total > 0 ? formatMoney(total) : '-'}
+                            </strong>
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {calendarEntryDateKey ? (
+                    <div className="calendar-edit-panel">
+                      <span>
+                        {formatShortDate(fromDateKey(calendarEntryDateKey))}
+                      </span>
+                      {!isCalendarEntryFormOpen ? (
+                        <button
+                          className="calendar-add-button"
+                          type="button"
+                          onClick={() => setIsCalendarEntryFormOpen(true)}
+                        >
+                          新增
+                        </button>
+                      ) : (
+                        <form
+                          className="calendar-entry-form"
+                          onSubmit={submitCalendarEntry}
+                        >
+                          <select
+                            aria-label="新增項目"
+                            value={calendarEntryName}
+                            onChange={(event) =>
+                              setCalendarEntryName(event.target.value)
+                            }
+                          >
+                            {calendarEntryOptions.map((option) => (
+                              <option key={option.name} value={option.name}>
+                                {option.icon} {option.name}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            aria-label="新增金額"
+                            inputMode="numeric"
+                            min="0"
+                            placeholder="金額"
+                            type="number"
+                            value={calendarEntryAmount}
+                            onChange={(event) =>
+                              setCalendarEntryAmount(event.target.value)
+                            }
+                          />
+                          <button type="submit">確定</button>
+                        </form>
+                      )}
+                      <div className="calendar-detail-panel">
+                        <div className="calendar-detail-heading">
+                          <strong>明細</strong>
+                          <span>{calendarEntryRecords.length} 筆</span>
+                        </div>
+
+                        {calendarEntryRecords.length === 0 ? (
+                          <p className="calendar-detail-empty">
+                            這一天還沒有明細
+                          </p>
+                        ) : (
+                          <ul className="calendar-detail-list">
+                            {calendarEntryRecords.map((record) => (
+                              <li key={record.id}>
+                                <div>
+                                  <span className="item-icon" aria-hidden="true">
+                                    {record.icon}
+                                  </span>
+                                  <span>{record.name}</span>
+                                </div>
+                                <strong>{formatMoney(record.amount)}</strong>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    removeCalendarRecord(record.id)
+                                  }
+                                >
+                                  移除
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </section>
+              ) : null}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -493,15 +780,15 @@ function App() {
 
       <section className="records-panel" aria-label="花費明細">
         <div className="records-heading">
-          <h2>{formatShortDate(selectedDate)} 明細</h2>
-          <span>{selectedItems.length} 個項目</span>
+          <h2>{formatShortDate(today)} 明細</h2>
+          <span>{todayItems.length} 個項目</span>
         </div>
 
-        {selectedItems.length === 0 ? (
+        {todayItems.length === 0 ? (
           <p className="empty-state">這一天還沒有花費</p>
         ) : (
           <ul className="records-list">
-            {selectedItems.map((item) => (
+            {todayItems.map((item) => (
               <li key={`${item.icon}-${item.name}`}>
                 <div className="record-title">
                   <span className="item-icon" aria-hidden="true">
@@ -531,8 +818,33 @@ function App() {
 
         <div className="summary-row">
           <span>當日總結</span>
-          <strong>{formatMoney(selectedTotal)}</strong>
+          <strong>{formatMoney(todayTotal)}</strong>
         </div>
+      </section>
+
+      <section className="period-daily-panel" aria-label="當期每日總結">
+        <div className="records-heading">
+          <h2>當期每日總結</h2>
+          <span>
+            {formatShortDate(period.start)} - {formatShortDate(period.displayEnd)}
+          </span>
+        </div>
+
+        {periodDailySummaries.length === 0 ? (
+          <p className="empty-state">本期還沒有記帳</p>
+        ) : (
+          <ul className="daily-summary-list">
+            {periodDailySummaries.map((day) => (
+              <li
+                className={day.isSelected ? 'is-selected' : ''}
+                key={day.dateKey}
+              >
+                <span>{formatShortDate(day.date)}</span>
+                <strong>{formatMoney(day.total)}</strong>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </main>
   )

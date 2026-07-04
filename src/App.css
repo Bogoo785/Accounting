@@ -16,12 +16,14 @@ body {
   background:
     linear-gradient(135deg, rgba(49, 109, 119, 0.12), transparent 38%),
     #f4f1ea;
+  -webkit-text-size-adjust: 100%;
 }
 
 button,
 input,
 select {
   font: inherit;
+  font-size: 16px;
 }
 
 button {
@@ -112,11 +114,17 @@ h2 {
   margin-top: 12px;
 }
 
+.period-settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-top: 16px;
+}
+
 .period-setting {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 16px;
   color: #344054;
   font-weight: 800;
 }
@@ -448,6 +456,10 @@ input::placeholder {
     justify-items: start;
   }
 
+  .period-settings {
+    gap: 10px;
+  }
+
   .period-setting {
     align-items: flex-start;
     flex-direction: column;
@@ -513,7 +525,14 @@ input::placeholder {
   .entry-row input,
   .entry-row button {
     min-height: 34px;
-    font-size: 0.85rem;
+  }
+
+  .entry-row input,
+  .custom-entry input,
+  .custom-entry select,
+  .records-list input,
+  .period-setting select {
+    font-size: 16px;
   }
 
   .records-heading {

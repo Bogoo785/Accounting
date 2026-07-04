@@ -16,7 +16,17 @@ const customIconOptions = [
 ]
 const storageKey = 'daily-expenses'
 const startDayKey = 'billing-start-day'
-const startDayOptions = Array.from({ length: 28 }, (_, index) => index + 1)
+const endDayKey = 'billing-end-day'
+const dayOptions = Array.from({ length: 31 }, (_, index) => index + 1)
+
+function getSavedDay(key, fallback) {
+  const saved = Number(localStorage.getItem(key))
+  return dayOptions.includes(saved) ? saved : fallback
+}
+
+function getPreviousDay(day) {
+  return day === 1 ? 31 : day - 1
+}
 
 function getDefaultIcon(name) {
   return (
@@ -60,17 +70,32 @@ function fromDateKey(dateKey) {
   return new Date(year, month - 1, day)
 }
 
-function getBillingPeriod(monthDate, startDay = 14) {
-  const start = new Date(
-    monthDate.getFullYear(),
-    monthDate.getMonth(),
-    startDay,
-  )
-  const end = new Date(start.getFullYear(), start.getMonth() + 1, startDay)
-  const displayEnd = new Date(end)
-  displayEnd.setDate(displayEnd.getDate() - 1)
+function getMonthDate(year, month, day) {
+  const lastDay = new Date(year, month + 1, 0).getDate()
+  return new Date(year, month, Math.min(day, lastDay))
+}
 
-  return { start, end, displayEnd }
+function isDateInRange(date, start, end) {
+  return date >= start && date <= end
+}
+
+function getBillingPeriod(date, startDay = 14, endDay = 13) {
+  const candidates = [-1, 0, 1].map((offset) => {
+    const startMonth = date.getMonth() + offset
+    const start = getMonthDate(date.getFullYear(), startMonth, startDay)
+    const endMonth = endDay >= startDay ? startMonth : startMonth + 1
+    const displayEnd = getMonthDate(date.getFullYear(), endMonth, endDay)
+    const end = new Date(displayEnd)
+    end.setDate(end.getDate() + 1)
+
+    return { start, end, displayEnd }
+  })
+
+  return (
+    candidates.find((period) =>
+      isDateInRange(date, period.start, period.displayEnd),
+    ) ?? candidates[1]
+  )
 }
 
 function getDateRange(start, end) {
@@ -130,8 +155,11 @@ function normalizeRecords(records) {
 function App() {
   const today = useMemo(() => new Date(), [])
   const [startDay, setStartDay] = useState(() => {
-    const saved = Number(localStorage.getItem(startDayKey))
-    return startDayOptions.includes(saved) ? saved : 14
+    return getSavedDay(startDayKey, 14)
+  })
+  const [endDay, setEndDay] = useState(() => {
+    const savedStartDay = getSavedDay(startDayKey, 14)
+    return getSavedDay(endDayKey, getPreviousDay(savedStartDay))
   })
   const [selectedDateKey, setSelectedDateKey] = useState(toDateKey(today))
   const [visibleMonth, setVisibleMonth] = useState(
@@ -148,15 +176,18 @@ function App() {
     return saved ? normalizeRecords(JSON.parse(saved)) : []
   })
 
+  const selectedDate = useMemo(
+    () => fromDateKey(selectedDateKey),
+    [selectedDateKey],
+  )
   const period = useMemo(
-    () => getBillingPeriod(visibleMonth, startDay),
-    [startDay, visibleMonth],
+    () => getBillingPeriod(selectedDate, startDay, endDay),
+    [endDay, selectedDate, startDay],
   )
   const periodDays = useMemo(
     () => getBillingDays(period.start, period.end),
     [period.end, period.start],
   )
-  const selectedDate = fromDateKey(selectedDateKey)
   const visibleMonthDays = useMemo(
     () => getMonthDays(visibleMonth),
     [visibleMonth],
@@ -199,6 +230,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem(startDayKey, String(startDay))
   }, [startDay])
+
+  useEffect(() => {
+    localStorage.setItem(endDayKey, String(endDay))
+  }, [endDay])
 
   function changeVisibleMonth(direction) {
     const nextDate = moveMonth(selectedDate, direction)
@@ -291,21 +326,36 @@ function App() {
     <main className="app-shell">
       <section className="header-panel">
         <div>
-          <p className="eyebrow">可自訂起始日</p>
+          <p className="eyebrow">可自訂結算區間</p>
           <h1>我的記帳本</h1>
-          <label className="period-setting">
-            <span>起始日期</span>
-            <select
-              value={startDay}
-              onChange={(event) => setStartDay(Number(event.target.value))}
-            >
-              {startDayOptions.map((day) => (
-                <option key={day} value={day}>
-                  {day} 號
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="period-settings">
+            <label className="period-setting">
+              <span>起始日期</span>
+              <select
+                value={startDay}
+                onChange={(event) => setStartDay(Number(event.target.value))}
+              >
+                {dayOptions.map((day) => (
+                  <option key={day} value={day}>
+                    {day} 號
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="period-setting">
+              <span>截止日期</span>
+              <select
+                value={endDay}
+                onChange={(event) => setEndDay(Number(event.target.value))}
+              >
+                {dayOptions.map((day) => (
+                  <option key={day} value={day}>
+                    {day} 號
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           <p className="period">
             {formatShortDate(period.start)} - {formatShortDate(period.displayEnd)}
           </p>
